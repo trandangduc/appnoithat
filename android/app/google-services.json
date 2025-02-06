@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1020660061948",
+    "firebase_url": "https://appnoithat-d8010-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "appnoithat-d8010",
+    "storage_bucket": "appnoithat-d8010.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1020660061948:android:eaa973f0d93db39fdda979",
+        "android_client_info": {
+          "package_name": "com.example.appnoithat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaN-g2hgzvzwtg6izK3P39jj6R2hc8eqE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
