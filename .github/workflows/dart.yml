@@ -22,49 +22,71 @@ jobs:
       
       - name: Flutter version
         run: flutter --version
-
-      - name: Display pubspec.yaml
-        run: cat pubspec.yaml
       
-      - name: Flutter pub get
-        run: flutter pub get
-        
-      - name: Debug - List dependencies
-        run: flutter pub deps
-        
-      - name: Debug - Check for device_info_plus
-        run: flutter pub deps | grep -i device_info
-
-      - name: Flutter clean
-        run: flutter clean
-        
-      - name: Flutter pub get (again after clean)
-        run: flutter pub get
-        
-      - name: Verify iOS directory structure
-        run: |
-          ls -la ios/
-          ls -la ios/Runner/
-          cat ios/Runner/GeneratedPluginRegistrant.m || echo "GeneratedPluginRegistrant.m not found"
+      # Sửa lỗi plugin thiếu  
+      - name: Add missing device_info_plus explicitly
+        run: flutter pub add device_info_plus
       
-      - name: Force regenerate plugin registrant
+      - name: Display plugin status
         run: |
-          rm -rf ios/Flutter/Flutter.podspec || true
-          flutter create --platforms=ios . --org com.example
-
-      - name: Install CocoaPods dependencies with verbose output
+          echo "PLUGINS IN PUBSPEC.YAML:"
+          grep -A 20 "dependencies:" pubspec.yaml
+          echo "--------"
+          flutter pub deps | grep device_info
+      
+      # Xóa tất cả các tệp iOS để tạo lại từ đầu  
+      - name: Clean iOS files completely
+        run: |
+          rm -rf ios
+          rm -rf .ios
+          flutter create --platforms=ios .
+      
+      # Tạo Podfile mới và thêm plugin   
+      - name: Create Podfile
         run: |
           cd ios
-          pod repo update
-          rm -rf Pods Podfile.lock
-          pod install --verbose
-      
-      - name: Add missing device_info_plus if needed
-        run: |
-          if ! grep -q "device_info_plus" pubspec.yaml; then
-            echo "device_info_plus not found in pubspec.yaml, adding it"
-            flutter pub add device_info_plus
+          if [ -f "Podfile" ]; then
+            echo "Podfile exists, updating..."
+            flutter pub get
+            pod install
+          else
+            echo "Podfile not found, creating..."
+            flutter pub get
+            pod init
+            echo "post_install do |installer|" >> Podfile
+            echo "  installer.pods_project.targets.each do |target|" >> Podfile
+            echo "    flutter_additional_ios_build_settings(target)" >> Podfile
+            echo "  end" >> Podfile
+            echo "end" >> Podfile
+            pod install
           fi
+      
+      # Kiểm tra GeneratedPluginRegistrant.m
+      - name: Check GeneratedPluginRegistrant.m
+        run: |
+          echo "CONTENT OF GeneratedPluginRegistrant.m:"
+          cat ios/Runner/GeneratedPluginRegistrant.m || echo "File not found"
+      
+      # Sửa GeneratedPluginRegistrant.m nếu cần
+      - name: Fix GeneratedPluginRegistrant.m if needed
+        run: |
+          if grep -q "device_info_plus" ios/Runner/GeneratedPluginRegistrant.m; then
+            echo "device_info_plus found in GeneratedPluginRegistrant.m"
+          else
+            echo "device_info_plus not found in GeneratedPluginRegistrant.m, fixing..."
+            echo "Adding device_info_plus to project..."
+            cd ios
+            pod repo update
+            pod install --repo-update
+          fi
+      
+      # Kiểm tra Podfile
+      - name: Check Podfile content
+        run: |
+          echo "CONTENT OF PODFILE:"
+          cat ios/Podfile || echo "Podfile not found"
+          echo "CONTENT OF PODFILE.LOCK:"
+          cat ios/Podfile.lock || echo "Podfile.lock not found"
       
       - name: Flutter build iOS
         run: flutter build ios --release --no-codesign
