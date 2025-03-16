@@ -1,0 +1,2 @@
+D:/DOANTOTNGHIEP/appnoithat/android/app/.cxx/RelWithDebInfo/6h2a5o1o/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/DOANTOTNGHIEP/appnoithat/android/app/.cxx/RelWithDebInfo/6h2a5o1o/armeabi-v7a/CMakeFiles/rebuild_cache.dir
