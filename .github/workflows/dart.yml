@@ -1,37 +1,61 @@
 name: iOS-ipa-build
-
 on:
   workflow_dispatch:
-
 jobs:
   build-ios:
     name: 🎉 iOS Build
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
-
-      - uses: subosito/flutter-action@v2
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           architecture: x64
-      - run: flutter pub get
+          
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true
       
-
-      - run: pod repo update
-        working-directory: ios
-
-      - run: flutter build ios --release --no-codesign
-
-      - run: mkdir Payload
+      - name: Flutter version
+        run: flutter --version
+      
+      - name: Flutter pub get
+        run: flutter pub get
+        
+      - name: Flutter clean
+        run: flutter clean
+      
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod repo update
+          pod install --repo-update
+      
+      - name: Remove Podfile.lock and Pods directory
+        run: |
+          cd ios
+          rm -rf Pods Podfile.lock
+          pod install
+      
+      - name: Flutter build iOS
+        run: flutter build ios --release --no-codesign
+      
+      - name: Create Payload directory
+        run: mkdir Payload
         working-directory: build/ios/iphoneos
-
-      - run: mv Runner.app/ Payload
+      
+      - name: Move Runner.app to Payload
+        run: mv Runner.app Payload
         working-directory: build/ios/iphoneos
-
+      
       - name: Zip output
         run: zip -qq -r -9 FlutterIpaExport.ipa Payload
         working-directory: build/ios/iphoneos
-
+      
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
