@@ -54,7 +54,7 @@ class _AdminPageState extends State<AdminPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[800],
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.white),
         title: Text(
@@ -70,57 +70,32 @@ class _AdminPageState extends State<AdminPage> {
       drawer: Drawer(
         width: 280,
         child: Container(
-          color: Colors.black,
+          color: Colors.grey[600],
           child: Column(
             children: [
               Container(
-                height: 120,
+                height: 140, // Chiều cao
                 padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey[900],
+                  color: Colors.grey[800],
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(20),
                     bottomRight: Radius.circular(20),
                   ),
                 ),
                 child: SafeArea(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/icon/logo.png', // Đường dẫn hình ảnh trong thư mục assets
+                          height: 80, // Điều chỉnh kích thước hình ảnh
+                          fit: BoxFit.contain,
                         ),
-                        child: Icon(Icons.person, size: 35, color: Colors.black),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Admin',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Quản trị viên',
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -151,7 +126,7 @@ class _AdminPageState extends State<AdminPage> {
                 },
               ),
               Spacer(),
-              Divider(color: Colors.grey[800]),
+              Divider(color:Colors.grey[800]),
               _buildDrawerItem(
                 icon: Icons.exit_to_app,
                 title: 'Đăng xuất',
@@ -284,7 +259,7 @@ class _AdminPageState extends State<AdminPage> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddProjectDialog,
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[600],
         icon: Icon(Icons.add, color: Colors.white),
         label: Text(
           'Thêm dự án',
@@ -370,16 +345,20 @@ class _AdminPageState extends State<AdminPage> {
     final newProjectRef = _database.child('projects').push();
     final projectId = newProjectRef.key; // Lấy id của dự án mới
 
-    // Lưu thông tin dự án bao gồm id vào Firebase
     await newProjectRef.set({
       'name': name,
       'manager': manager,
-      'id': projectId, // Thêm id vào thông tin dự án
+      'id': projectId,
     });
 
-    // Cập nhật lại danh sách dự án sau khi thêm
+    // **Gọi lại _fetchProjects() để cập nhật danh sách**
     setState(() {
       _projects = _fetchProjects();
+      _projects.then((data) {
+        setState(() {
+          _filteredProjects = data;
+        });
+      });
     });
   }
 

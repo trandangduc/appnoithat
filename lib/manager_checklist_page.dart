@@ -27,7 +27,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.black,
+        backgroundColor:Colors.grey[800],
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.white),
       ),

@@ -1,9 +1,15 @@
 import 'dart:io';
 
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:appnoithat/task_detail.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:excel/excel.dart'  as ex;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view.dart';
@@ -28,6 +34,12 @@ class TasksPage extends StatefulWidget {
 
   @override
   _TasksPageState createState() => _TasksPageState();
+}
+class TaskData {
+  final String taskName;
+  final List<String> checklists;
+
+  TaskData(this.taskName, this.checklists);
 }
 class _TasksPageState extends State<TasksPage> {
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
@@ -198,8 +210,92 @@ class _TasksPageState extends State<TasksPage> {
         _Tasks = _fetchTasks(); // Lấy danh sách tác vụ từ bảng 'tacvu'
       });
     }
+  Future<void> processTaskData(List<TaskData> taskDataList) async {
+    for (var taskData in taskDataList) {
+      // Thêm task vào bảng tacvu
+      final taskRef = _database.child('task_project').push();
+      final taskId = taskRef.key;
+      await taskRef.set({
+        'taskId': taskId,
+        'taskName': taskData.taskName,
+        'projectId': widget.projectId,
+      });
+
+      // Thêm checklist vào bảng checklist
+      for (var checklistItem in taskData.checklists) {
+        await _addChecklist(taskId!, checklistItem);
+      }
+    }
+    setState(() {
+      _finishedTasks = _fetchFinishedTasks(); // Lấy danh sách task đã hoàn thành
+      _projectTasks = _fetchProjectTasks(); // Lấy danh sách task của dự án
+      _Tasks = _fetchTasks(); // Lấy danh sách tác vụ từ bảng 'tacvu'
+    });
+  }
+  Future<void> _addChecklist(String taskId, String checklistName) async {
+    final newChecklistRef = _database.child('checklist_project_task').push();
+    await newChecklistRef.set({
+      'id': newChecklistRef.key,
+      'id_task_project': taskId,
+      'Name': checklistName,
+      'status': false,
+      'imagePath': '',
+    });
+  }
+  Future<void> importExcelFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (result != null) {
+        File file = File(result.files.single.path!);
+        var bytes = file.readAsBytesSync();
+        var excel = ex.Excel.decodeBytes(bytes);
+
+        List<TaskData> taskDataList = [];
+        List<String> currentChecklists = [];
+        String? currentTaskName;
+
+        for (var table in excel.tables.keys) {
+          var rows = excel.tables[table]!.rows;
+          var columnCount = rows[0].length; // Số cột trong Excel
+
+          // Xử lý từng cột
+          for (var col = 0; col < columnCount; col++) {
+            if (rows[0][col]?.value == null) continue; // Bỏ qua cột trống
+
+            // Lấy tên công việc từ hàng đầu tiên của cột
+            currentTaskName = rows[0][col]!.value.toString().trim();
+            currentChecklists.clear();
+
+            // Lấy các checklist từ các hàng tiếp theo của cột đó
+            for (var row = 1; row < rows.length; row++) {
+              if (rows[row][col]?.value != null) {
+                String checklistItem = rows[row][col]!.value.toString().trim();
+                if (checklistItem.isNotEmpty) {
+                  currentChecklists.add(checklistItem);
+                }
+              }
+            }
+
+            // Thêm task và checklist vào list nếu có dữ liệu
+            if (currentTaskName.isNotEmpty && currentChecklists.isNotEmpty) {
+              taskDataList.add(TaskData(currentTaskName, List.from(currentChecklists)));
+            }
+          }
+        }
 
 
+        // Process the extracted data
+        await processTaskData(taskDataList);
+      }
+    } catch (e) {
+      print('Error importing Excel file: $e');
+      // Show error dialog or snackbar
+    }
+  }
   // Hàm mở dialog để thêm task mới
   void _showAddTaskDialog() {
     final taskNameController = TextEditingController();
@@ -404,9 +500,21 @@ class _TasksPageState extends State<TasksPage> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
+
                             ),
+                            IconButton(
+                              icon: Icon(Icons.file_upload, color: Colors.black54, size: 28),
+                              onPressed: () async {
+                                await importExcelFile();
+                                Navigator.of(context).pop();
+                              },
+                              tooltip: 'Import Excel',
+                            ),
+
                           ],
+
                         ),
+
                       ],
                     ),
                   ),
@@ -463,7 +571,7 @@ class _TasksPageState extends State<TasksPage> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[800],
         iconTheme: IconThemeData(color: Colors.white),
         title: Text(
           widget.projectName,
@@ -476,9 +584,10 @@ class _TasksPageState extends State<TasksPage> {
         actions: [
           IconButton(
             icon: Icon(Icons.picture_as_pdf, color: Colors.white),
-            onPressed: generateProjectPDF,
+            onPressed: _showExportOptions,
           ),
         ],
+
       ),
       body: Container(
         color: Colors.grey[100],
@@ -488,7 +597,7 @@ class _TasksPageState extends State<TasksPage> {
             Container(
               padding: EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.black87,
+                color:Colors.grey[600],
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(24),
                   bottomRight: Radius.circular(24),
@@ -623,7 +732,7 @@ class _TasksPageState extends State<TasksPage> {
                                 color: Colors.white.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white,
                                   width: 1,
                                 ),
                               ),
@@ -707,7 +816,7 @@ class _TasksPageState extends State<TasksPage> {
                                                             : Icons.radio_button_unchecked,
                                                         color: item['status'] == 'true'
                                                             ? Colors.green
-                                                            : Colors.white60,
+                                                            : Colors.white,
                                                         size: 20,
                                                       ),
                                                       SizedBox(width: 8),
@@ -715,7 +824,7 @@ class _TasksPageState extends State<TasksPage> {
                                                         child: Text(
                                                           item['Name'],
                                                           style: TextStyle(
-                                                            color: Colors.white70,
+                                                            color: Colors.white,
                                                             fontSize: 14,
                                                             decoration: item['status'] == 'true'
                                                                 ? TextDecoration.lineThrough
@@ -1044,6 +1153,110 @@ class _TasksPageState extends State<TasksPage> {
 
     );
   }
+  void _showExportOptions() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[700], // Nền đen
+          title: Text(
+            "Xuất PDF",
+            style: TextStyle(color: Colors.white), // Chữ trắng
+          ),
+          content: Text(
+            "Chọn phương thức xuất PDF",
+            style: TextStyle(color: Colors.white70), // Chữ màu xám nhạt
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                generateProjectPDF(true); // Xuất tất cả công việc
+              },
+              child: Text(
+                "Xuất tất cả công việc",
+                style: TextStyle(color: Colors.white70), // Nút màu xanh
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _selectTasksForExport(); // Mở hộp thoại chọn công việc
+              },
+              child: Text(
+                "Chọn công việc để xuất",
+                style: TextStyle(color: Colors.white70), // Nút màu đỏ
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _selectTasksForExport() async {
+    List<dynamic> allTasks = await _projectTasksWithChecklist();
+    List<dynamic> selectedTasks = [];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.white, // Đặt màu nền trắng
+              title: Text(
+                "Chọn công việc để xuất",
+                style: TextStyle(color: Colors.black), // Văn bản màu đen để dễ đọc
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: allTasks.map((task) {
+                    return CheckboxListTile(
+                      title: Text(
+                        task['taskName'],
+                        style: TextStyle(color: Colors.black), // Đảm bảo chữ có màu đen
+                      ),
+                      value: selectedTasks.contains(task),
+                      onChanged: (bool? value) {
+                        setState(() {
+                          if (value == true) {
+                            selectedTasks.add(task);
+                          } else {
+                            selectedTasks.remove(task);
+                          }
+                        });
+                      },
+                      activeColor: Colors.red, // Màu khi checkbox được chọn
+                      checkColor: Colors.white, // Màu dấu tick
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text("Hủy", style: TextStyle(color: Colors.red)), // Nút hủy có màu đỏ
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    generateProjectPDF(false, selectedTasks);
+                  },
+                  child: Text("Xuất PDF", style: TextStyle(color: Colors.black)), // Nút xác nhận màu xanh
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+
+
   void _showImageInDialog(String imageUrl) {
     showDialog(
       context: context,
@@ -1176,158 +1389,356 @@ class _TasksPageState extends State<TasksPage> {
     }
     return taskList;
   }
-  Future generateProjectPDF() async {
+  Future<bool> _requestStoragePermission() async {
+    AndroidDeviceInfo build = await DeviceInfoPlugin().androidInfo;
+    if (build.version.sdkInt >= 33) {
+      var status = await Permission.manageExternalStorage.request();
+      return status.isGranted;
+    } else if (build.version.sdkInt >= 30) {
+      var status = await Permission.manageExternalStorage.request();
+      return status.isGranted;
+    } else {
+      var status = await Permission.storage.request();
+      return status.isGranted;
+    }
+  }
+
+  Future<void> generateProjectPDF(bool exportAll, [List<dynamic>? selectedTasks]) async {
     final pdf = pw.Document(version: PdfVersion.pdf_1_5, compress: true);
+
+    // Load font
     final fontData = await rootBundle.load('assets/fonts/arial.ttf');
     final ttf = pw.Font.ttf(fontData);
 
-    final projectTasks = await _projectTasksWithChecklist();
-
-    final List tasksWithImages = await Future.wait(
-      projectTasks.map((task) async {
-        final List checklistWithImages = await Future.wait(
-          (task['checklist'] as List).map((item) async {
-            final checklistItem = item as Map;
-            if (checklistItem['imagePath'] != null && checklistItem['imagePath'].isNotEmpty) {
-              final imageBytes = await _getImageBytes(checklistItem['imagePath']);
-              return {...checklistItem, 'imageBytes': imageBytes};
-            }
-            return checklistItem;
-          }).toList(),
-        );
-        return {...task, 'checklist': checklistWithImages};
-      }).toList(),
+    // Load logo
+    final logoImage = pw.MemoryImage(
+      (await rootBundle.load('assets/icon/logopdf.jpg')).buffer.asUint8List(),
     );
 
+    // Lấy dữ liệu checklist (giả lập)
+    final projectTasks = exportAll ? await _projectTasksWithChecklist() : selectedTasks ?? [];
+
+    // Tạo trang PDF
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.all(32),
-        build: (pw.Context context) => [
-          pw.Header(
-            level: 0,
-            child: pw.Text(
-              'Dự án: ${widget.projectName}',
-              style: pw.TextStyle(font: ttf, fontSize: 24, fontWeight: pw.FontWeight.bold),
+        margin: pw.EdgeInsets.all(20),
+        build: (pw.Context context) {
+          List<pw.Widget> content = [];
+
+          // Header
+          content.add(
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Image(logoImage, width: 60, height: 60),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Dự án: ${widget.projectName}',
+                      style: pw.TextStyle(font: ttf, fontSize: 20, fontWeight: pw.FontWeight.bold),
+                    ),
+                    pw.Text(
+                      'Người phụ trách: ${widget.projectManager}',
+                      style: pw.TextStyle(font: ttf, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          pw.Paragraph(
-            text: 'Người phụ trách: ${widget.projectManager}',
-            style: pw.TextStyle(font: ttf, fontSize: 14),
-          ),
-          ...tasksWithImages.map((task) {
-            return pw.Container(
-              decoration: pw.BoxDecoration(
-                color: PdfColors.white,
-                border: pw.Border.all(color: PdfColors.grey300, width: 1),
-                borderRadius: pw.BorderRadius.circular(8),
-                boxShadow: [
-                  pw.BoxShadow(
-                    color: PdfColors.grey300,
-                    blurRadius: 5,
-                  ),
-                ],
+          );
+
+          content.add(pw.SizedBox(height: 20));
+
+          // Title
+          content.add(
+            pw.Container(
+              width: double.infinity,
+              alignment: pw.Alignment.center,
+              padding: pw.EdgeInsets.symmetric(vertical: 8),
+              color: PdfColors.red,
+              child: pw.Text(
+                'CHECK LIST THI CÔNG DỰ ÁN ${widget.projectName}',
+                style: pw.TextStyle(
+                  font: ttf,
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                ),
               ),
-              margin: pw.EdgeInsets.only(bottom: 16),
-              padding: pw.EdgeInsets.all(16),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    task['taskName'] ?? 'Unnamed Task',
-                    style: pw.TextStyle(font: ttf, fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Table(
-                    border: pw.TableBorder.all(color: PdfColors.grey),
-                    columnWidths: {
-                      0: pw.FlexColumnWidth(3),
-                      1: pw.FlexColumnWidth(1),
-                      2: pw.FlexColumnWidth(2),
-                    },
-                    children: [
-                      pw.TableRow(
-                        decoration: pw.BoxDecoration(color: PdfColors.blue100),
-                        children: [
-                          pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Text('Tên công việc', style: pw.TextStyle(font: ttf, fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                          ),
-                          pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Text('Trạng thái', style: pw.TextStyle(font: ttf, fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                          ),
-                          pw.Padding(
-                            padding: pw.EdgeInsets.all(8),
-                            child: pw.Text('Hình', style: pw.TextStyle(font: ttf, fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                      ...task['checklist'].map<pw.TableRow>((checklistItem) {
-                        final bool isCompleted = checklistItem['status'] == 'true';
-                        return pw.TableRow(
-                          children: [
-                            pw.Padding(
-                              padding: pw.EdgeInsets.all(8),
-                              child: pw.Text(
-                                checklistItem['Name'],
-                                style: pw.TextStyle(
-                                  font: ttf,
-                                  fontSize: 12,
-                                  fontWeight: pw.FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            pw.Padding(
-                              padding: pw.EdgeInsets.all(8),
-                              child: pw.Text(
-                                isCompleted ? '✔' : '✘',
-                                style: pw.TextStyle(
-                                  font: ttf,
-                                  fontSize: 12,
-                                  color: isCompleted ? PdfColors.green : PdfColors.red,
-                                  fontWeight: pw.FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            pw.Padding(
-                              padding: pw.EdgeInsets.all(8),
-                              child: checklistItem.containsKey('imageBytes')
-                                  ? pw.Image(
-                                pw.MemoryImage(checklistItem['imageBytes']),
-                                width: 50,
-                                height: 50,
-                                fit: pw.BoxFit.cover,
-                              )
-                                  : pw.Container(),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ],
+            ),
+          );
+
+          content.add(pw.SizedBox(height: 10));
+
+          // Chia nhỏ danh sách công việc theo từng nhóm để tránh lỗi
+          final int maxRowsPerPage = 10; // Giới hạn số dòng trên mỗi trang
+          int totalTasks = projectTasks.length;
+          int pages = (totalTasks / maxRowsPerPage).ceil();
+
+          for (int i = 0; i < pages; i++) {
+            int start = i * maxRowsPerPage;
+            int end = start + maxRowsPerPage;
+            if (end > totalTasks) end = totalTasks;
+
+            List sublist = projectTasks.sublist(start, end);
+            content.add(_buildChecklistTable(sublist, ttf));
+
+
+          }
+
+          return content;
+        },
       ),
     );
 
-    final pdfBytes = await pdf.save();
-    final directory = await getExternalStorageDirectory();
-    final fileName = 'Project_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    final file = File('${directory!.path}/$fileName');
-    await file.writeAsBytes(pdfBytes);
 
-    print("PDF đã lưu tại: ${file.path}");
+    final pdfBytes = await pdf.save();
+    final fileName = 'Nghiệm thu nội bộ công việc ${widget.projectName}.pdf';
+    final directory = Directory('/storage/emulated/0/Download');
+    final file = File('${directory.path}/$fileName');
+
+    // Kiểm tra quyền trước khi lưu
+    if (await _requestStoragePermission()) {
+      try {
+        await file.writeAsBytes(pdfBytes);
+        _showMessage('PDF đã lưu tại: Download/$fileName');
+        OpenFile.open(file.path);
+      } catch (e) {
+        _showMessage('Lưu PDF thất bại: ${e.toString()}');
+      }
+    } else {
+      _showMessage('Không có quyền lưu file!');
+    }
+  }
+
+// Hiển thị thông báo
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('PDF đã lưu tại ${file.path}'), duration: Duration(seconds: 3)),
+      SnackBar(content: Text(message)),
     );
   }
 
+// Hàm tạo widget cho mỗi task
+// Hàm tạo widget cho mỗi task
+  pw.Widget _buildChecklistTable(List projectTasks, pw.Font ttf) {
+    // Chia danh sách công việc thành từng cặp để hiển thị theo 2 cột
+    List<List> taskPairs = [];
+    for (int i = 0; i < projectTasks.length; i += 2) {
+      if (i + 1 < projectTasks.length) {
+        taskPairs.add([projectTasks[i], projectTasks[i + 1]]);
+      } else {
+        taskPairs.add([projectTasks[i]]);
+      }
+    }
 
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black),
+      columnWidths: {
+        0: pw.FlexColumnWidth(1),
+        1: pw.FlexColumnWidth(3),
+        2: pw.FlexColumnWidth(1),
+        3: pw.FlexColumnWidth(3),
+      },
+      children: [
+        // Table header
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColors.orange200),
+          children: [
+            pw.Padding(
+              padding: pw.EdgeInsets.all(8),
+              child: pw.Text(
+                'CHECK LIST',
+                style: pw.TextStyle(
+                  font: ttf,
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.Padding(
+              padding: pw.EdgeInsets.all(8),
+              child: pw.Text(
+                'NỘI DUNG',
+                style: pw.TextStyle(
+                  font: ttf,
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.Padding(
+              padding: pw.EdgeInsets.all(8),
+              child: pw.Text(
+                'CHECK LIST',
+                style: pw.TextStyle(
+                  font: ttf,
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.Padding(
+              padding: pw.EdgeInsets.all(8),
+              child: pw.Text(
+                'NỘI DUNG',
+                style: pw.TextStyle(
+                  font: ttf,
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        ...taskPairs.map((pair) {
+          return pw.TableRow(
+            children: [
+              // First task's title cell
+              pw.Container(
+                padding: pw.EdgeInsets.all(8),
+                color: PdfColors.red,
+                alignment: pw.Alignment.center,
+                child: pw.Text(
+                  pair[0]['taskName'] ?? 'Unnamed Task',
+                  style: pw.TextStyle(
+                    font: ttf,
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
+              ),
+              // First task's checklist items
+              pw.Container(
+                padding: pw.EdgeInsets.all(4),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    ...((pair[0]['checklist'] as List?) ?? []).map((item) {
+                      final bool isCompleted = item['status'] == 'true';
+                      return pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Container(
+                            width: 12,
+                            height: 12,
+                            margin: pw.EdgeInsets.only(right: 4, top: 2),
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(color: PdfColors.grey),
+                              color: isCompleted ? PdfColors.green : PdfColors.white,
+                            ),
+                            child: isCompleted
+                                ? pw.Center(
+                              child: pw.Text(
+                                'v',
+                                style: pw.TextStyle(
+                                  color: PdfColors.white,
+                                  fontSize: 8,
+                                ),
+                              ),
+                            )
+                                : pw.Container(),
+                          ),
+                          pw.Container(
+                            margin: pw.EdgeInsets.only(top: 5),
+                            child: pw.Wrap(
+                              children: [
+                                pw.Text(
+                                  item['Name'] ?? '',
+                                  style: pw.TextStyle(
+                                    font: ttf,
+                                    fontSize: 8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+              // Second task's title cell (if exists)
+              pair.length > 1
+                  ? pw.Container(
+                padding: pw.EdgeInsets.all(8),
+                color: PdfColors.red,
+                alignment: pw.Alignment.center,
+                child: pw.Text(
+                  pair[1]['taskName'] ?? 'Unnamed Task',
+                  style: pw.TextStyle(
+                    font: ttf,
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
+              )
+                  : pw.Container(),
+              // Second task's checklist items (if exists)
+              pair.length > 1
+                  ? pw.Container(
+                padding: pw.EdgeInsets.all(4),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    ...((pair[1]['checklist'] as List?) ?? []).map((item) {
+                      final bool isCompleted = item['status'] == 'true';
+                      return pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Container(
+                            width: 12,
+                            height: 12,
+                            margin: pw.EdgeInsets.only(right: 4, top: 2),
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(color: PdfColors.grey),
+                              color: isCompleted ? PdfColors.green : PdfColors.white,
+                            ),
+                            child: isCompleted
+                                ? pw.Center(
+                              child: pw.Text(
+                                'v',
+                                style: pw.TextStyle(
+                                  color: PdfColors.white,
+                                  fontSize: 8,
+                                ),
+                              ),
+                            )
+                                : pw.Container(),
+                          ),
+                          pw.Container(
+                            margin: pw.EdgeInsets.only(top: 5),
+                            child: pw.Wrap(
+                              children: [
+                                pw.Text(
+                                  item['Name'] ?? '',
+                                  style: pw.TextStyle(
+                                    font: ttf,
+                                    fontSize: 8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+              )
+                  : pw.Container(),
+            ],
+          );
+        }).toList(),
+      ],
+    );
+  }
 // Helper method to fetch image bytes
   Future<Uint8List> _getImageBytes(String imageUrl) async {
     try {

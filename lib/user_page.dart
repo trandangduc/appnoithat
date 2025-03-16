@@ -50,7 +50,7 @@ class _UserPageState extends State<UserPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[800],
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.white),
 
@@ -58,54 +58,36 @@ class _UserPageState extends State<UserPage> {
       drawer: Drawer(
         width: 280,
         child: Container(
-          color: Colors.black,
+          color: Colors.grey[600],
           child: Column(
             children: [
               Container(
-                height: 120,
+                height: 140, // Chiều cao
                 padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey[900],
+                  color: Colors.grey[800],
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(20),
                     bottomRight: Radius.circular(20),
                   ),
                 ),
                 child: SafeArea(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/icon/logo.png', // Đường dẫn hình ảnh trong thư mục assets
+                          height: 80, // Điều chỉnh kích thước hình ảnh
+                          fit: BoxFit.contain,
                         ),
-                        child: Icon(Icons.person, size: 35, color: Colors.black),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Xin chào',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
+
               SizedBox(height: 16),
               _buildDrawerItem(
                 icon: Icons.lock_outline,
@@ -118,6 +100,7 @@ class _UserPageState extends State<UserPage> {
               Spacer(),
               Divider(color: Colors.grey[800]),
               _buildDrawerItem(
+
                 icon: Icons.exit_to_app,
                 title: 'Đăng xuất',
                 onTap: () {
@@ -260,19 +243,6 @@ class _UserPageState extends State<UserPage> {
                                   children: [
                                     Row(
                                       children: [
-                                        Container(
-                                          padding: EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[100],
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Icon(
-                                            Icons.business,
-                                            color: Colors.black,
-                                            size: 24,
-                                          ),
-                                        ),
-                                        SizedBox(width: 16),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,24 +256,7 @@ class _UserPageState extends State<UserPage> {
                                                   letterSpacing: 0.5,
                                                 ),
                                               ),
-                                              SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.person_outline,
-                                                    size: 16,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    _filteredProjects[index]['manager']!,
-                                                    style: TextStyle(
-                                                      color: Colors.grey[600],
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
+
                                             ],
                                           ),
                                         ),
@@ -341,12 +294,12 @@ class _UserPageState extends State<UserPage> {
     return ListTile(
       leading: Icon(
         icon,
-        color: isLogout ? Colors.red : Colors.white,
+        color: isLogout ? Colors.white : Colors.white,
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: isLogout ? Colors.red : Colors.white,
+          color: isLogout ? Colors.white : Colors.white,
         ),
       ),
       onTap: onTap,

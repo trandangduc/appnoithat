@@ -154,7 +154,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.black, // Modern, professional color
+        backgroundColor: Colors.grey[800],
         elevation: 0, // Flat design
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -233,7 +233,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addUser,
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[600],
         elevation: 4,
         child: const Icon(
           Icons.add,

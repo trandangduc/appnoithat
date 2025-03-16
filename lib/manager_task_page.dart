@@ -92,7 +92,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[800],
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.white),
       ),
@@ -274,7 +274,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
             },
           );
         },
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[600],
         child: Icon(Icons.add, color: Colors.white),
       ),
     );

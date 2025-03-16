@@ -215,13 +215,57 @@ class _ChecklistPageState extends State<ChecklistPage> {
       _checklistTasks = _fetchChecklistTasks();
     });
   }
+  void _showEditChecklistDialog(String checklistId, String currentName) {
+    TextEditingController _editChecklistController = TextEditingController(text: currentName);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), // Viền bo góc nhẹ
+          backgroundColor: Colors.white, // Nền trắng
+          title: Text('Chỉnh sửa Checklist', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+          content: TextField(
+            controller: _editChecklistController,
+            decoration: InputDecoration(hintText: 'Nhập tên mới'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text('Hủy', style: TextStyle(color: Colors.black)),
+            ),
+            TextButton(
+              onPressed: () {
+                if (_editChecklistController.text.isNotEmpty) {
+                  _updateChecklist(checklistId, _editChecklistController.text);
+                  Navigator.pop(context);
+                }
+              },
+              child: Text('Lưu', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _updateChecklist(String checklistId, String newName) async {
+    await _database.child('checklist_project_task').child(checklistId).update({'Name': newName});
+
+    // Cập nhật danh sách checklist
+    setState(() {
+      _checklistTasks = _fetchChecklistTasks();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[800],
         foregroundColor: Colors.white,
         title: Text(
           'Checklist Công Việc',
@@ -318,13 +362,20 @@ class _ChecklistPageState extends State<ChecklistPage> {
                       ),
                     ],
                   ),
-                  trailing: IconButton(
-                    icon: Icon(
-                        Icons.delete_outline,
-                        color: Colors.grey[700]
-                    ),
-                    onPressed: () => _showDeleteConfirmationDialog(task['id']!),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit, color: Colors.grey[700]),
+                        onPressed: () => _showEditChecklistDialog(task['id']!, task['Name']!),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete_outline, color: Colors.grey[700]),
+                        onPressed: () => _showDeleteConfirmationDialog(task['id']!),
+                      ),
+                    ],
                   ),
+
                   onTap: task['imagePath']!.isNotEmpty
                       ? () => _showImageInDialog(task['imagePath']!)
                       : null,
@@ -336,7 +387,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddChecklistDialog,
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.grey[600],
         child: Icon(
           Icons.add,
           color: Colors.white,
