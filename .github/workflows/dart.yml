@@ -22,24 +22,49 @@ jobs:
       
       - name: Flutter version
         run: flutter --version
+
+      - name: Display pubspec.yaml
+        run: cat pubspec.yaml
       
       - name: Flutter pub get
         run: flutter pub get
         
+      - name: Debug - List dependencies
+        run: flutter pub deps
+        
+      - name: Debug - Check for device_info_plus
+        run: flutter pub deps | grep -i device_info
+
       - name: Flutter clean
         run: flutter clean
+        
+      - name: Flutter pub get (again after clean)
+        run: flutter pub get
+        
+      - name: Verify iOS directory structure
+        run: |
+          ls -la ios/
+          ls -la ios/Runner/
+          cat ios/Runner/GeneratedPluginRegistrant.m || echo "GeneratedPluginRegistrant.m not found"
       
-      - name: Install CocoaPods dependencies
+      - name: Force regenerate plugin registrant
+        run: |
+          rm -rf ios/Flutter/Flutter.podspec || true
+          flutter create --platforms=ios . --org com.example
+
+      - name: Install CocoaPods dependencies with verbose output
         run: |
           cd ios
           pod repo update
-          pod install --repo-update
-      
-      - name: Remove Podfile.lock and Pods directory
-        run: |
-          cd ios
           rm -rf Pods Podfile.lock
-          pod install
+          pod install --verbose
+      
+      - name: Add missing device_info_plus if needed
+        run: |
+          if ! grep -q "device_info_plus" pubspec.yaml; then
+            echo "device_info_plus not found in pubspec.yaml, adding it"
+            flutter pub add device_info_plus
+          fi
       
       - name: Flutter build iOS
         run: flutter build ios --release --no-codesign
