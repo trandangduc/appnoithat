@@ -37,12 +37,12 @@ dependencies:
   firebase_core: ^3.10.1
   firebase_database: ^11.3.1
   shared_preferences: ^2.0.15
-  image_picker: ^0.8.5+3
+  image_picker: ^1.1.2
   cloudinary_dart: ^0.0.11
   cloudinary_api: ^1.1.0
   cloudinary_url_gen: ^1.7.0
-  photo_view: ^0.14.0
-  intl: ^0.18.0
+  photo_view: ^0.15.0
+  intl: ^0.20.2
   pdf: ^3.10.4
   printing: ^5.11.0
   http: ^1.1.0
@@ -51,12 +51,12 @@ dependencies:
   path_provider: ^2.1.0
   permission_handler : ^11.3.1
   flutter_launcher_icons: ^0.14.3
-  rxdart: ^0.27.7
-  excel: ^2.1.0
+  rxdart: ^0.28.0
+  excel: ^4.0.6
   file_picker: ^9.0.2
   cached_network_image: ^3.2.0
   flutter_cache_manager: ^3.3.0
-  shimmer: ^2.0.0
+  shimmer: ^3.0.0
   android_intent_plus: ^5.3.0
 
 dev_dependencies:
